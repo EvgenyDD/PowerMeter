@@ -4,6 +4,17 @@
 #include "mcp3561.h"
 #include "platform.h"
 
+// https://github.com/Bobeye/cta2045-wifi-modules/blob/3646496d0187bd21bb205171ff542e122f3039f7/Aztec/ADE7753.h#L42
+// https://github.com/Bobeye/cta2045-wifi-modules/blob/master/Aztec/ADE7753.c
+// https://github.com/teslamotors/linux/blob/f1fb5b640056e29852f3d9345ac0a381e04cedbe/drivers/staging/iio/meter/ade7753.c#L166
+// https://github.com/tinyos/tinyos-main/blob/c4fcab72d062e1dc6a294b8b2a64792e647528b6/tos/chips/ade7753/ADE7753P.nc
+// https://github.com/fngstudios/ADE7753/blob/master/ADE7753.h
+// https://github.com/fngstudios/ADE7753/blob/master/ADE7753.cpp#L427
+// https://github.com/fngstudios/ADE7753/blob/master/ADE7753.h#L137
+// https://github.com/Ideely/Metering-Project/blob/63e96721f0f4587e117e938400b36fbf9ae52bdb/Main/ADE7753.cpp#L361
+// https://github.com/SEL-Columbia/telduino/blob/383989a7c0d6f376a28fa36898909f99881edf66/core/ADE7753/ADE7753.cpp#L6
+
+
 extern SPI_HandleTypeDef hspi1;
 
 void config(void)
