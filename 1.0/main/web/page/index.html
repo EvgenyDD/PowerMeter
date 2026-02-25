@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Energy Meter</title>
+    <meta charset="utf-8">
+    <script src="index.js"></script>
+</head>
+
+<body>
+
+    <div style="display: flex; align-items: center; gap: 10px; margin:5px;">
+        <label style="padding: 2px; background-color: rgb(202, 202, 202);">
+            <input type="checkbox" id="devModeSwitch" onclick="toggleDivs()"> Developer Mode
+        </label>
+        <label id="labelOffline"
+            style="background-color: red;color: whitesmoke; padding-bottom: 2px; display: none;">⚠️Offline⚠️</label>
+
+        <div id="div_upd"
+            style="padding: 5px; border: 5px double black; background-color: rgb(255, 172, 172); display:none">
+            <label for="otafile">Firmware File:</label>
+            <input type="file" id="otafile" name="otafile" accept=".bin" />
+            <button id="upload" type="button" onclick="startUpload()">Upload</button>
+            <label id="status" for="upload"></label>
+        </div>
+    </div>
+
+    <style>
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: Arial, sans-serif;
+        }
+
+        .data-table td {
+            vertical-align: top;
+            padding: 5px;
+        }
+
+        .column-box {
+            border: 2px solid black;
+            padding: 10px;
+            background: white;
+            height: 100%;
+            min-height: 230px;
+            box-sizing: border-box;
+        }
+
+        .column-title {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+            text-align: center;
+        }
+
+        .inner-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .inner-table td {
+            padding: 3px 5px;
+            border: none;
+        }
+
+        .inner-table .label-cell {
+            font-weight: bold;
+            width: 60%;
+        }
+
+        .inner-table .value-cell {
+            font-family: monospace;
+            width: 40%;
+            text-align: right;
+        }
+
+        .table-container {
+            width: 40%;
+            height: 50%;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(57, 57, 57, 0.05);
+            overflow: hidden;
+        }
+
+        .set1 {
+            border-left: 1px solid #e9ecef;
+            border-right: 1px solid #e9ecef;
+            text-align: right;
+        }
+
+        .set2 {
+            text-align: right;
+        }
+
+        table {
+            width: 100%;
+            height: 100%;
+            border-collapse: collapse;
+            font-size: 18px;
+        }
+
+        th {
+            background: #f8f9fa;
+            color: #6c757d;
+            font-weight: 500;
+            padding: 12px 8px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #e9ecef;
+            padding-right: 20px;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+    </style>
+
+    <div id="basic_ui">
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>ADE7753</th>
+                        <th>BL0937</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+
+
+
+
+
+                    <tr style="background-color: rgba(0, 0, 255, 0.4);">
+                        <td class="measurement">Apparent Energy</td>
+                        <td class="value set1 rtd_app">---</td>
+                        <td class="value set2"></td>
+                    </tr>
+                    <tr style="background-color: rgba(255, 0, 0, 0.4);">
+                        <td class="measurement">Active Energy</td>
+                        <td class="value set1 rtd_act">---</td>
+                        <td class="value set2 rtd_2nd_e">---</td>
+                    </tr>
+                    <tr style="background-color: rgba(0, 255, 0, 0.4);">
+                        <td class="measurement">Reactive Energy</td>
+                        <td class="value set1">---</td>
+                        <td class="value set2"></td>
+                    </tr>
+                    <tr style="background-color: rgba(255, 180, 0, 0.6);">
+                        <td class="measurement">Power</td>
+                        <td class="value set1 rtd_wf">---</td>
+                        <td class="value set2 rtd_2nd_p">---</td>
+                    </tr>
+                    <tr>
+                        <td class="measurement">Power Factor</td>
+                        <td class="value set1">---</td>
+                        <td class="value set2"></td>
+                    </tr>
+                    <tr style="background-color: rgba(0, 0, 255, 0.3);">
+                        <td class="measurement">U RMS</td>
+                        <td class="value set1 rtd_urms">---</td>
+                        <td class="value set2 rtd_2nd_u">---</td>
+                    </tr>
+                    <tr style="background-color: rgba(255, 0, 0, 0.3);">
+                        <td class="measurement">I RMS</td>
+                        <td class="value set1 rtd_irms">---</td>
+                        <td class="value set2 rtd_2nd_i">---</td>
+                    </tr>
+                    <tr style="background-color: rgba(240, 237, 255, 0.813);">
+                        <td class="measurement">Frequency</td>
+                        <td class="value set1 rtd_freq">---</td>
+                        <td class="value set2"></td>
+                    </tr>
+                    <tr>
+                        <td class="measurement">Temperature</td>
+                        <td class="value set1 rtd_temp">---</td>
+                        <td class="value set2"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <br>
+        <button onclick="clearCounters()" style="background-color: rgb(193, 193, 193); padding: 10px;">Clear</button>
+    </div>
+
+    <div id="ext_ui" style="display:none">
+        <table class="data-table">
+            <tr>
+                <td width="20%">
+                    <div class="column-box" style="background-color: rgb(232, 255, 186);">
+                        <span class="column-title">Data</span>
+                        <table class="inner-table">
+                            <tr>
+                                <td class="label-cell">Apparent Energy:</td>
+                                <td class="value-cell rtd_app">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">Active Energy:</td>
+                                <td class="value-cell rtd_act">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">Power:</td>
+                                <td class="value-cell rtd_wf">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">U RMS:</td>
+                                <td class="value-cell rtd_urms">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">I RMS:</td>
+                                <td class="value-cell rtd_irms">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">Frequency:</td>
+                                <td class="value-cell rtd_freq">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">Temperature:</td>
+                                <td class="value-cell rtd_temp">---</td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
+                <td width="20%">
+                    <div class="column-box" style="background-color: rgb(199, 220, 159);">
+                        <span class="column-title">2nd</span>
+                        <table class="inner-table">
+                            <tr>
+                                <td class="label-cell">Energy:</td>
+                                <td class="value-cell rtd_2nd_e">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">Power:</td>
+                                <td class="value-cell rtd_2nd_p">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">U:</td>
+                                <td class="value-cell rtd_2nd_u">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">I:</td>
+                                <td class="value-cell rtd_2nd_i">---</td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
+                <td width="20%">
+                    <div class="column-box" style="background-color: rgb(181, 255, 32);">
+                        <span class="column-title">RAW</span>
+                        <table class="inner-table">
+                            <tr>
+                                <td class="label-cell">Apparent Energy:</td>
+                                <td class="value-cell rtd_raw_app">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">Active Energy:</td>
+                                <td class="value-cell rtd_raw_act">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">Waveform:</td>
+                                <td class="value-cell rtd_raw_wf">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">U RMS:</td>
+                                <td class="value-cell rtd_raw_urms">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">I RMS:</td>
+                                <td class="value-cell rtd_raw_irms">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">Temperature:</td>
+                                <td class="value-cell rtd_raw_temp">---</td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
+                <td width="20%">
+                    <div class="column-box" style="background-color: rgb(32, 199, 255);">
+                        <span class="column-title">Accumulate</span>
+                        <table class="inner-table">
+                            <tr>
+                                <td class="label-cell">Apparent Energy:</td>
+                                <td class="value-cell rtd_acc_app">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">Active Energy:</td>
+                                <td class="value-cell rtd_acc_act">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">Reactive Energy:</td>
+                                <td class="value-cell rtd_acc_react">---</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">Time:</td>
+                                <td class="value-cell rtd_acc_time">---</td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div id="div_rec"
+        style="display: flex; align-items: center; gap: 10px; width: 100%; padding-bottom: 10px; display:none">
+        <button onclick="startRecording()">Start Recording</button>
+        <button onclick="stopRecording()">Stop Recording</button>
+        <button onclick="saveRecordedData()">Save as CSV</button>
+        <button onclick="clearRecordedData()">Clear Data</button>
+        <div id="recordingStatus"></div>
+    </div>
+
+    <div id="div_console" style=" margin-left:10px; display:none">
+        <label for="console">Console:</label>
+        <input type="text" id="console" onkeydown="consoleSendEvent(event)" name="console" />
+        <button id="console_send" type="button" onclick="consoleSend()">Send</button>
+        <label for="console">Console:</label>
+        <input type="text" id="console2" onkeydown="consoleSendEvent2(event)" name="console" />
+        <button id="console_send2" type="button" onclick="consoleSend2()">Send</button>
+    </div>
+    <br>
+    <div id="messageLog"
+        style="height: 50vh; overflow:scroll; color:black; background-color: rgb(221, 221, 221); display:none">
+    </div>
+</body>
+
+</html>
