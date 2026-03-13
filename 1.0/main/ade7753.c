@@ -42,7 +42,7 @@ Calibration:
 3. connect inputs
 4. calibrate UrmsOS by datasheet at 2 voltages
 5. calibrate IrmsOS that ADE7753_VAENERGY change rate ~0
-6. calibrate APOS that ADE7753_AENERGY change rate ~0
+6. calibrate APOS that ADE7753_AENERGY change rate ~0 (AENERGY don't depend on IRMS, VAENERGY does)
 7. ... calibrate gains for all values with reference meter
 */
 
