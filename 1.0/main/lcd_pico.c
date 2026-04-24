@@ -24,22 +24,6 @@ static char buf_print[256];
 static uint16_t _xs = 0, _xe = 0, _ys = 0, _ye = 0, _xoff = 0, _yoff = 0;
 static spi_device_handle_t spi_lcd;
 
-extern const uint8_t font3x5[];
-extern const uint8_t font5x8[];
-extern const uint8_t font16x24[];
-extern const uint8_t fontSTD_swiss721_outline[];
-extern const uint8_t font8x12[];
-extern const uint8_t font16x16[];
-extern const uint8_t font8x16[];
-
-sFONT_t Font3x5 = {font3x5, 0, 0};
-sFONT_t Font5x8 = {font5x8, 0, 0};
-sFONT_t Font16x24 = {font16x24, 0, 0};
-sFONT_t FontSTD_swiss721_outline = {fontSTD_swiss721_outline, 0, 0};
-sFONT_t Font8x12 = {font8x12, 0, 0};
-sFONT_t Font16x16 = {font16x16, 0, 0};
-sFONT_t Font8x16 = {font8x16, 0, 0};
-
 static void lcd_cmd(uint8_t Reg)
 {
 	PIN_L(D_DC);
@@ -478,119 +462,93 @@ void lcd_circle(uint16_t x_c, uint16_t y_c, uint16_t r, uint16_t color, uint32_t
 	}
 }
 
-extern uint8_t yy[8];
-void lcd_char(uint16_t x, uint16_t y, const char c, sFONT_t *font, uint16_t color_fg, uint16_t color_bg)
+void lcd_char(uint16_t x, uint16_t y, const char c, const uint8_t *font, uint32_t font_sz, uint16_t color_fg, uint16_t color_bg)
 {
 	color_fg = ((color_fg << 8) & 0xff00) | (color_fg >> 8);
 	color_bg = ((color_bg << 8) & 0xff00) | (color_bg >> 8);
 
-	if(font->Height && font->Width)
+	uint32_t num_ch = 0;
+	if(font[3] == 0 || font[3] == 1) num_ch = (font_sz - 4) / font[0] / (font[1] / 8 + (font[1] % 8 ? 1 : 0));
+	if(font[3] == 2 || font[3] == 3) num_ch = (font_sz - 4) / font[1] / (font[0] / 8 + (font[0] % 8 ? 1 : 0));
+
+	if(font[3] == 2)
 	{
-		if(x + font->Width >= LCD_WIDTH || y + font->Height >= LCD_HEIGHT) return;
-		uint32_t Char_Offset = (c - ' ') * font->Height * (font->Width / 8 + (font->Width % 8 ? 1 : 0));
+		if(x + font[0] >= lcd_w() || y + font[1] >= lcd_h()) return;
+		if(c >= font[2] + num_ch) return;
+		if(c < font[2]) return;
+		uint32_t ch_offset = 4 + (c - font[2]) * font[1] * (font[0] / 8 + (font[0] % 8 ? 1 : 0));
 
-		const uint8_t *ptr = &font->table[Char_Offset];
-		for(uint16_t row = 0; row < font->Height; row++)
+		for(uint16_t row = 0; row < font[1]; row++)
 		{
-			for(uint16_t col = 0; col < font->Width; col++)
+			for(uint16_t col = 0; col < font[0]; col++)
 			{
-				fill_buf[row * font->Width + col] = (*ptr & (0x80 >> (col % 8))) ? color_fg : color_bg;
-				if(col % 8 == 7) ptr++;
+				fill_buf[row * font[0] + col] = (font[ch_offset] & (0x80 >> (col % 8)))
+													? color_fg
+													: color_bg;
+				if(col % 8 == 7) ch_offset++;
 			}
-			if(font->Width % 8) ptr++;
+			if(font[0] % 8) ch_offset++;
 		}
 
-		lcd_windows(x, y, x + font->Width, y + font->Height);
+		lcd_windows(x, y, x + font[0], y + font[1]);
 		PIN_H(D_DC);
-		for(uint32_t j = 0; j < font->Height; j++)
-		{
-			static spi_transaction_t SPITransaction;
-			memset(&SPITransaction, 0, sizeof(spi_transaction_t));
-			SPITransaction.length = (font->Width * font->Height * 2) * 8;
-			SPITransaction.tx_buffer = fill_buf;
-			ESP_ERROR_CHECK(spi_device_transmit(spi_lcd, &SPITransaction));
-		}
+		static spi_transaction_t SPITransaction;
+		memset(&SPITransaction, 0, sizeof(spi_transaction_t));
+		SPITransaction.length = (font[0] * font[1] * 2) * 8;
+		SPITransaction.tx_buffer = fill_buf;
+		ESP_ERROR_CHECK(spi_device_transmit(spi_lcd, &SPITransaction));
 	}
 	else
 	{
-		struct
+		if(x + font[0] >= lcd_w() || y + font[1] >= lcd_h()) return;
+
+		if(c >= font[2] + num_ch) return;
+		if(c < font[2]) return;
+		uint32_t ch_offset = 4 + (uint32_t)((c - font[2]) * ((uint32_t)((font[0]) < 8
+																			? font[0] * ((font[1] + 7) / 8)
+																			: (font[0] * font[1] + 7) / 8)));
+
+		if(font[3] == 3)
 		{
-			const uint8_t *font;
-			uint8_t x_size;
-			uint8_t y_size;
-			uint8_t offset;
-			uint8_t numchars;
-			uint8_t inverse;
-		} cfont;
-		cfont.font = font->table;
-		cfont.x_size = cfont.font[0];
-		cfont.y_size = cfont.font[1];
-		cfont.offset = cfont.font[2];
-		cfont.numchars = cfont.font[3];
-		cfont.inverse = cfont.font[4];
-
-#define FONT_WIDTH cfont.x_size
-#define FONT_HEIGHT cfont.y_size
-
-#define BitIsSet(x, y) ((x) & (1 << (y)))
-
-		if(c >= cfont.offset + cfont.numchars) return;
-		uint32_t temp = (uint32_t)((c - cfont.offset) * (FONT_WIDTH * ((FONT_HEIGHT + 7) / 8))) + 5;
-
-		if(BitIsSet(cfont.inverse, 7))
-		{
-			for(int16_t j = 0; j < FONT_HEIGHT; j++)
+			for(uint16_t j = 0; j < font[1]; j++)
 			{
-				for(int8_t k = 0; k < FONT_WIDTH / 8; k++)
+				for(uint8_t k = 0; k < font[0] / 8; k++)
 				{
-					char frame = cfont.font[temp++];
+					uint8_t frame = font[ch_offset++];
 					for(uint8_t i = 0; i < 8; i++)
 					{
-						if(BitIsSet(frame, cfont.inverse & 0x01 ? (7 - i) : (i)))
-						{
-							fill_buf[(k * 8 + 7 - i) + cfont.y_size * (j)] = color_fg;
-						}
-						else
-						{
-							fill_buf[(k * 8 + 7 - i) + cfont.y_size * (j)] = color_bg;
-						}
+						fill_buf[font[0] * j + k * 8 + 7 - i] = (frame & (1 << i))
+																	? color_fg
+																	: color_bg;
 					}
 				}
 			}
 		}
 		else
 		{
-			for(uint16_t col = 0; col < FONT_WIDTH; col++)
+			for(int8_t row = font[1] - 1; row >= 0; row--)
 			{
-				const uint8_t frame = cfont.font[temp++];
-				for(uint8_t row = 0; row < FONT_HEIGHT; row++)
+				for(uint16_t col = 0; col < font[0]; col++)
 				{
-					if(BitIsSet(frame, cfont.inverse & 0x01 ? (7 - row) : (row)))
-					{
-						fill_buf[(col) + cfont.x_size * (FONT_HEIGHT - 1 - row)] = color_fg;
-					}
-					else
-					{
-						fill_buf[(col) + cfont.x_size * (FONT_HEIGHT - 1 - row)] = color_bg;
-					}
+					int a = font[3] == 1 ? row : font[1] - 1 - row;
+					fill_buf[font[0] * a + col] = (font[ch_offset + col] & (1 << row))
+													  ? color_fg
+													  : color_bg;
 				}
 			}
 		}
 
-		lcd_windows(x, y, x + cfont.x_size, y + cfont.y_size);
+		lcd_windows(x, y, x + font[0], y + font[1]);
 		PIN_H(D_DC);
-		for(uint32_t j = 0; j < 8 + 0 * cfont.y_size; j++)
-		{
-			static spi_transaction_t SPITransaction;
-			memset(&SPITransaction, 0, sizeof(spi_transaction_t));
-			SPITransaction.length = (cfont.x_size * cfont.y_size * 2) * 8;
-			SPITransaction.tx_buffer = fill_buf;
-			ESP_ERROR_CHECK(spi_device_transmit(spi_lcd, &SPITransaction));
-		}
+		static spi_transaction_t SPITransaction;
+		memset(&SPITransaction, 0, sizeof(spi_transaction_t));
+		SPITransaction.length = (font[0] * font[1] * 2) * 8;
+		SPITransaction.tx_buffer = fill_buf;
+		ESP_ERROR_CHECK(spi_device_transmit(spi_lcd, &SPITransaction));
 	}
 }
 
-void lcd_string(uint16_t x, uint16_t y, sFONT_t *font, uint16_t color_fg, uint16_t color_bg, const char *format, ...)
+void lcd_string(uint16_t x, uint16_t y, const uint8_t *font, uint32_t font_sz, uint16_t color_fg, uint16_t color_bg, const char *format, ...)
 {
 	va_list args;
 	va_start(args, format);
@@ -599,10 +557,28 @@ void lcd_string(uint16_t x, uint16_t y, sFONT_t *font, uint16_t color_fg, uint16
 
 	for(char *it = buf_print; *it; it++)
 	{
-		lcd_char(x, y, *it, font, color_fg, color_bg);
-		if(font->Height && font->Width)
-			x += font->Width + 1 * 0;
-		else
-			x += font->table[0] + 1;
+		lcd_char(x, y, *it, font, font_sz, color_fg, color_bg);
+		x += font[0] + 1;
 	}
+}
+
+void lcd_dvd(uint16_t color_fg, uint16_t color_bg)
+{
+	static int32_t p[2] = {0, 0};
+	static int32_t speed[2] = {1, 1};
+
+#define DVD_FONT font5x8
+	const int32_t size[2] = {5 * (DVD_FONT[0] + 1) - 1, 2 * DVD_FONT[1] + 1};
+
+	// lcd_clear();
+	//  lcd_rect(p[0], p[1], size[0], size[1]);
+	lcd_string(p[0] + DVD_FONT[0] + 1, p[1] + DVD_FONT[1] + 1, F(font5x8), color_fg, color_bg, "DVD");
+	lcd_string(p[0], p[1], F(font5x8), color_fg, color_bg, "VIDEO");
+	p[0] += speed[0];
+	p[1] += speed[1];
+	if(p[0] == 0 && speed[0] < 0) speed[0] *= -1;
+	if(p[1] == 0 && speed[1] < 0) speed[1] *= -1;
+	if(p[0] + size[0] >= lcd_w() - 1 && speed[0] > 0) speed[0] *= -1;
+	if(p[1] + size[1] >= lcd_h() - 1 && speed[1] > 0) speed[1] *= -1;
+	// update_pending = true;
 }

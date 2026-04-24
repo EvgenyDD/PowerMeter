@@ -255,3 +255,11 @@ void wifi_poll(uint32_t diff_ms)
 }
 
 bool wifi_is_sta_connected(void) { return sta_connected; }
+
+int wifi_get_clients_conn(void)
+{
+	xSemaphoreTake(client_count_mutex, portMAX_DELAY);
+	int cnt = ap_connected_clients;
+	xSemaphoreGive(client_count_mutex);
+	return cnt;
+}

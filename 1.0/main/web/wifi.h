@@ -8,6 +8,8 @@ void wifi_poll(uint32_t diff_ms);
 
 bool wifi_is_sta_connected(void);
 
+int wifi_get_clients_conn(void);
+
 extern wifi_ap_record_t *wifi_records;
 extern uint16_t wifi_records_cnt;
 

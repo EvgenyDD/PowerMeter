@@ -81,7 +81,7 @@ static esp_err_t update_handler(httpd_req_t *req)
 	const esp_partition_t *p = esp_ota_get_next_update_partition(NULL);
 	if(esp_ota_begin(p, OTA_SIZE_UNKNOWN, &handle))
 	{
-		httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "OTA Bagin failure");
+		httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "OTA Begin failure");
 		return ESP_FAIL;
 	}
 	int remaining = req->content_len;
